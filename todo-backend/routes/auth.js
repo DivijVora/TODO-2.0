@@ -8,7 +8,7 @@ const router = express.Router();
 router.post('/register', async (req, res) => {
   try {
     const { email, password } = req.body;
-    
+
     // Check if user exists
     const existingUser = await req.db.collection('users').findOne({ email });
     if (existingUser) {
@@ -17,6 +17,7 @@ router.post('/register', async (req, res) => {
     
     // Hash password
     const password_hash = await bcrypt.hash(password, 10);
+    console.log(password_hash);
     
     // Create user
     const result = await req.db.collection('users').insertOne({
