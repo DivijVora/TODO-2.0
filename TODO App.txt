@@ -1,0 +1,48 @@
+TODO App
+
+Settings tab:
+setting font size
+setting themes (dark mode, and light mode, background image etc)
+setting labels or markers
+
+Setting due date/time, for todo
+assigning labels and filtering based on them
+assigning names to todolists
+download option
+todo complete and delete as seperate actions
+todo order can be changed
+
+responsive minimalist design
+optimized for all screens
+
+login, logout, register system
+password hashing
+database session store
+
+autosave using put requests
+undo redo functionality
+
+react, jsx, express, mongodb
+
+fully fledged directory structure. ie. scalable and clear directory structure
+
+further
+transcribe a todo?
+voice notes?
+let an ai create the list for you?
+smart suggestions?
+
+
+express api pipelines:
+
+// Login and register
+POST /api/login
+POST /api/register
+POST /api/logout
+
+// Update todolist
+PATCH /api/todolist
+
+// Settings
+GET    /api/settings
+PUT    /api/settings
