@@ -209,11 +209,11 @@ function Main() {
           <div className="flex items-center justify-center w-full">
             <div className="text-red-500">{error}</div>
           </div>
-        ) : lists.length === 0 ? (
+          ) : lists.length === 0 ? (
           <div className="flex items-center justify-center w-full">
             <div className="text-gray-500">No lists yet. Create your first list!</div>
           </div>
-        ) : (
+          ) : (
           <List
             list={lists[currentListIndex]}
             onUpdateItem={async (listId, updatedItem) => {
@@ -267,6 +267,49 @@ function Main() {
               } catch (err) {
                 console.error('Failed to update item:', err);
                 alert('Failed to update item. Please try again.');
+              }
+            }}
+            onDeleteItem={async (listId, itemId) => {
+              try {
+                await axios.patch('/api/todolist', {
+                  lists: [{ action: 'delete-item', listId, changes: { itemId } }]
+                });
+
+                // Update local state to remove the item
+                setLists(prev => {
+                  const newLists = [...prev];
+                  const li = newLists.findIndex(l => l._id === listId);
+                  if (li === -1) return prev;
+                  newLists[li] = {
+                    ...newLists[li],
+                    list: newLists[li].list.filter(i => i.id !== itemId)
+                  };
+                  return newLists;
+                });
+              } catch (err) {
+                console.error('Failed to delete item:', err);
+                alert('Failed to delete item. Please try again.');
+              }
+            }}
+            onDeleteList={async (listId) => {
+              try {
+                await axios.patch('/api/todolist', {
+                  lists: [{ action: 'delete', listId }]
+                });
+
+                setLists(prev => {
+                  const newLists = prev.filter(l => l._id !== listId);
+                  // adjust currentListIndex if necessary
+                  if (newLists.length === 0) {
+                    setCurrentListIndex(0);
+                  } else if (currentListIndex >= newLists.length) {
+                    setCurrentListIndex(newLists.length - 1);
+                  }
+                  return newLists;
+                });
+              } catch (err) {
+                console.error('Failed to delete list:', err);
+                alert('Failed to delete list. Please try again.');
               }
             }}
           />
