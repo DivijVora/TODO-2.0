@@ -26,21 +26,62 @@ router.patch('/todolist', authenticateToken, async (req, res) => {
   try {
     const { lists, settings } = req.body;
     
-    // Process list operations
+      let createdLists = [];
+      // Process list operations
     if (lists) {
       for (const operation of lists) {
         if (operation.action === 'add') {
-          await req.db.collection('lists').insertOne({
+          const result = await req.db.collection('lists').insertOne({
             ...operation.list,
             user_id: req.userId
+          });
+          // Get the newly created list
+          const newList = await req.db.collection('lists').findOne({
+            _id: result.insertedId
+          });
+          createdLists.push(newList);
+        }
+        // Append a single todo item to the end of the list array.
+        // Client should send: { action: 'add-item', listId, changes: { task, completed, ... } }
+        if (operation.action === 'add-item') {
+          // Generate a unique ID for the new item using timestamp and random number
+          const newItemId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const itemToAdd = {
+            ...operation.changes,
+            id: newItemId
+          };
+          
+          await req.db.collection('lists').updateOne(
+            { _id: new ObjectId(operation.listId), user_id: req.userId },
+            { $push: { list: itemToAdd } }
+          );
+          
+          // Return the newly created item
+          createdLists.push({
+            _id: operation.listId,
+            item: itemToAdd
           });
         }
         
         if (operation.action === 'update') {
+           // Extract listId and index from the composite id
+           const { changes } = operation;
+           if (changes.list) {
+             // Normalize the list items before update to store only the base fields
+             const normalizedList = changes.list.map(item => ({
+               task: item.task,
+               completed: item.completed,
+               priority: item.priority,
+               starred: item.starred,
+               due_date: item.due_date,
+               due_time: item.due_time
+             }));
+           
           await req.db.collection('lists').updateOne(
             { _id: new ObjectId(operation.listId), user_id: req.userId },
-            { $set: operation.changes }
+              { $set: { list: normalizedList } }
           );
+           }
         }
         
         if (operation.action === 'delete') {
@@ -60,7 +101,43 @@ router.patch('/todolist', authenticateToken, async (req, res) => {
       );
     }
     
-    res.json({ success: true, timestamp: new Date() });
+    res.json({ 
+      success: true, 
+      timestamp: new Date(),
+      lists: createdLists
+    });
+    
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// GET /api/todolist
+router.get('/todolist', authenticateToken, async (req, res) => {
+  try {
+    const lists = await req.db.collection('lists')
+      .find({ user_id: req.userId })
+      // Sort by title to ensure consistent order
+      .sort({ title: 1 })
+      // Add projection to ensure we only get necessary fields
+      .project({
+        _id: 1,
+        title: 1,
+        list: 1
+      })
+      .toArray();
+    
+    // Process list items to ensure unique IDs
+    const processedLists = lists.map(list => ({
+      ...list,
+      list: list.list.map((item, index) => ({
+        ...item,
+        // Ensure unique IDs by combining list ID and index
+        id: `${list._id}-${index + 1}`
+      }))
+    }));
+    
+    res.json({ lists: processedLists });
     
   } catch (error) {
     res.status(500).json({ error: error.message });

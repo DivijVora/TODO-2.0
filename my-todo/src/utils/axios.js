@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// Create axios instance with base URL
+const instance = axios.create({
+  baseURL: 'http://localhost:5000'
+});
+
 // Add a request interceptor
-axios.interceptors.request.use(
+instance.interceptors.request.use(
   config => {
     const token = localStorage.getItem('token');
     if (token) {
@@ -15,7 +20,7 @@ axios.interceptors.request.use(
 );
 
 // Add a response interceptor to handle 401 errors
-axios.interceptors.response.use(
+instance.interceptors.response.use(
   response => response,
   error => {
     if (error.response?.status === 401) {
@@ -28,4 +33,4 @@ axios.interceptors.response.use(
   }
 );
 
-export default axios;
+export default instance;
