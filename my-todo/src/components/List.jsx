@@ -4,25 +4,27 @@ import '../styles/list.css';
 
 function List({ list, onUpdateItem, onDeleteItem, onDeleteList }) {
     const [selectedItemId, setSelectedItemId] = useState(null);
-    const [showAddItem, setShowAddItem] = useState(false);
-    const [newItemId] = useState(() => -Date.now()); // Unique negative ID for new item
+    const [newItemText, setNewItemText] = useState('');
 
     // Handle updates to list items
     const handleItemUpdate = (updatedItem) => {
-        if (updatedItem.id === newItemId) {
-            if (updatedItem.task?.trim()) {
-                // New item with content - send to backend
-                onUpdateItem(list._id, updatedItem);
-                setShowAddItem(false); // Hide the add item UI
-            }
-        } else {
-            onUpdateItem(list._id, updatedItem);
-        }
+        onUpdateItem(list._id, updatedItem);
     };
 
-    const handleAddItemClick = () => {
-        setShowAddItem(true);
-        setSelectedItemId(newItemId);
+    const handleAddItem = () => {
+        if (!newItemText.trim()) return;
+        
+        // Create new item with temporary negative ID and medium priority
+        onUpdateItem(list._id, {
+            id: -Date.now(), // Generate new unique negative ID each time
+            task: newItemText.trim(),
+            completed: false,
+            priority: 2, // Medium priority by default
+            starred: false
+        });
+
+        // Clear input
+        setNewItemText('');
     };
 
     return (
@@ -55,6 +57,32 @@ function List({ list, onUpdateItem, onDeleteItem, onDeleteList }) {
                         onDelete={() => onDeleteItem && onDeleteItem(list._id, item.id)}
                     />
                 ))}
+                
+                <div className="mt-4 flex items-center gap-2">
+                    <input
+                        type="text"
+                        placeholder="Add a new task..."
+                        value={newItemText}
+                        onChange={e => setNewItemText(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter' && newItemText.trim()) {
+                                handleAddItem();
+                            }
+                        }}
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                    <button
+                        onClick={handleAddItem}
+                        disabled={!newItemText.trim()}
+                        className="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19" />
+                            <line x1="5" y1="12" x2="19" y2="12" />
+                        </svg>
+                        <span>Add Task</span>
+                    </button>
+                </div>
             </div>
         </div>
     );

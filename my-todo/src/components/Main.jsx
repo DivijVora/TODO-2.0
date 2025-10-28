@@ -220,8 +220,33 @@ function Main() {
               try {
                 // Check if this is a new item or an update
                 const isNewItem = updatedItem.id < 0;
+                
+                // Immediately update local state for optimistic UI
+                setLists(prevLists => {
+                  const newLists = [...prevLists];
+                  const listIndex = newLists.findIndex(l => l._id === listId);
+                  if (listIndex === -1) return prevLists;
+                  
+                  if (isNewItem) {
+                    // Add new item to local state with temporary ID
+                    newLists[listIndex] = {
+                      ...newLists[listIndex],
+                      list: [...newLists[listIndex].list, updatedItem]
+                    };
+                  } else {
+                    // Update existing item
+                    newLists[listIndex] = {
+                      ...newLists[listIndex],
+                      list: newLists[listIndex].list.map(item =>
+                        item.id === updatedItem.id ? updatedItem : item
+                      )
+                    };
+                  }
+                  return newLists;
+                });
+
+                // Prepare the payload for the server
                 const payload = isNewItem ? {
-                  // Add new item
                   action: 'add-item',
                   listId,
                   changes: {
@@ -233,7 +258,6 @@ function Main() {
                     due_time: updatedItem.due_time
                   }
                 } : {
-                  // Update existing item
                   action: 'update',
                   listId,
                   changes: {
@@ -243,30 +267,55 @@ function Main() {
                   }
                 };
 
+                // Send update to server
                 const response = await axios.patch('/api/todolist', {
                   lists: [payload]
                 });
 
-                // Update local state
+                // Update local state with server response for new items
+                if (isNewItem && response.data.lists?.[0]?.item) {
+                  setLists(prevLists => {
+                    const newLists = [...prevLists];
+                    const listIndex = newLists.findIndex(l => l._id === listId);
+                    if (listIndex === -1) return prevLists;
+
+                    // Replace the temporary item with the server's version
+                    newLists[listIndex] = {
+                      ...newLists[listIndex],
+                      list: newLists[listIndex].list.map(item =>
+                        item.id === updatedItem.id ? response.data.lists[0].item : item
+                      )
+                    };
+                    return newLists;
+                  });
+                }
+              } catch (err) {
+                console.error('Failed to update item:', err);
+                alert('Failed to update item. Please try again.');
+                
+                // Revert optimistic update on error
                 setLists(prevLists => {
                   const newLists = [...prevLists];
                   const listIndex = newLists.findIndex(l => l._id === listId);
                   if (listIndex === -1) return prevLists;
 
-                  if (isNewItem && response.data.lists?.[0]?.item) {
-                    // Add new item with server-generated ID
-                    newLists[listIndex].list.push(response.data.lists[0].item);
-                  } else if (!isNewItem) {
-                    // Update existing item
-                    newLists[listIndex].list = newLists[listIndex].list.map(item =>
-                      item.id === updatedItem.id ? updatedItem : item
-                    );
+                  if (isNewItem) {
+                    // Remove the temporary item
+                    newLists[listIndex] = {
+                      ...newLists[listIndex],
+                      list: newLists[listIndex].list.filter(item => item.id !== updatedItem.id)
+                    };
+                  } else {
+                    // Fetch fresh data from server on update error
+                    // This is a backup - usually the old state is fine for updates
+                    axios.get('/api/todolist').then(response => {
+                      setLists(response.data.lists || []);
+                    }).catch(err => {
+                      console.error('Failed to refresh lists:', err);
+                    });
                   }
                   return newLists;
                 });
-              } catch (err) {
-                console.error('Failed to update item:', err);
-                alert('Failed to update item. Please try again.');
               }
             }}
             onDeleteItem={async (listId, itemId) => {
