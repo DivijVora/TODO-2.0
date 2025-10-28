@@ -1,1 +1,0 @@
-mongodb+srv://divijvora7_db_user:GNtF7GaqcUcCFAET@cluster0.gkwakbf.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0
